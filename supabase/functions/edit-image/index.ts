@@ -6,12 +6,15 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log("edit-image function called");
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { imageBase64, prompt } = await req.json();
+    console.log("Received request with prompt:", prompt?.substring(0, 50));
 
     if (!imageBase64 || !prompt) {
       throw new Error("Image and prompt are required");
@@ -19,6 +22,11 @@ serve(async (req) => {
 
     const DECART_API_KEY = Deno.env.get("DECART_API_KEY");
     const DECART_API_KEY_BACKUP = Deno.env.get("DECART_API_KEY_BACKUP");
+    
+    console.log("API Keys available:", {
+      primary: !!DECART_API_KEY,
+      backup: !!DECART_API_KEY_BACKUP
+    });
 
     if (!DECART_API_KEY && !DECART_API_KEY_BACKUP) {
       throw new Error("DECART_API_KEY is not configured");
@@ -28,8 +36,8 @@ serve(async (req) => {
 
     // Try primary key first
     let apiKey = DECART_API_KEY;
-    let response = null;
-    let error = null;
+    let response: Response | null = null;
+    let lastError: Error | null = null;
 
     if (apiKey) {
       try {
@@ -50,19 +58,22 @@ serve(async (req) => {
         if (!response.ok) {
           const errorText = await response.text();
           console.error("Primary API key failed:", response.status, errorText);
-          error = new Error(`Primary key failed: ${response.status}`);
+          lastError = new Error(`Primary key failed: ${response.status}`);
           response = null;
+        } else {
+          console.log("Primary API key succeeded");
         }
-      } catch (e: any) {
-        console.error("Primary API key error:", e.message);
-        error = e;
+      } catch (e) {
+        const error = e as Error;
+        console.error("Primary API key error:", error.message);
+        lastError = error;
         response = null;
       }
     }
 
     // If primary failed, try backup key
     if (!response && DECART_API_KEY_BACKUP) {
-      console.log("Primary key failed or not available, trying backup key");
+      console.log("Trying backup key");
       apiKey = DECART_API_KEY_BACKUP;
       
       try {
@@ -83,18 +94,22 @@ serve(async (req) => {
           const errorText = await response.text();
           console.error("Backup API key also failed:", response.status, errorText);
           throw new Error(`Both API keys failed. Last error: ${response.status}`);
+        } else {
+          console.log("Backup API key succeeded");
         }
-      } catch (e: any) {
-        console.error("Backup API key error:", e.message);
-        throw new Error(`Both API keys failed. Error: ${e.message}`);
+      } catch (e) {
+        const error = e as Error;
+        console.error("Backup API key error:", error.message);
+        throw new Error(`Both API keys failed. Error: ${error.message}`);
       }
     }
 
     if (!response) {
-      throw error || new Error("Failed to edit image with all available API keys");
+      throw lastError || new Error("Failed to edit image with all available API keys");
     }
 
     const data = await response.json();
+    console.log("Response data structure:", Object.keys(data));
     
     if (!data.data?.[0]?.url && !data.data?.[0]?.b64_json) {
       throw new Error("No image data in response");
@@ -113,10 +128,11 @@ serve(async (req) => {
       JSON.stringify({ imageUrl }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error: any) {
-    console.error("Error in edit-image function:", error);
+  } catch (error) {
+    const err = error as Error;
+    console.error("Error in edit-image function:", err.message);
     return new Response(
-      JSON.stringify({ error: error.message || "Failed to edit image" }),
+      JSON.stringify({ error: err.message || "Failed to edit image" }),
       { 
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
