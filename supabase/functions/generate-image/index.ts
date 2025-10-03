@@ -6,16 +6,19 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log("generate-image function called");
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { prompt, style, aspectRatio, quality, seed, negativePrompt } = await req.json();
-    const HF_TOKEN = Deno.env.get("HUGGINGFACE_API_KEY");
+    const { prompt, style, aspectRatio, quality } = await req.json();
+    console.log("Received request with prompt:", prompt?.substring(0, 50));
 
-    if (!HF_TOKEN) {
-      throw new Error("HUGGINGFACE_API_KEY not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY not configured");
     }
 
     // Build enhanced prompt with style
@@ -34,69 +37,52 @@ serve(async (req) => {
       enhancedPrompt = `${prompt}, ${styleMap[style] || ""}`;
     }
 
-    // Map quality to inference steps
-    const qualitySteps: Record<string, number> = {
-      draft: 4,
-      medium: 8,
-      high: 20,
-      ultra: 30
-    };
+    console.log("Calling Lovable AI image generation");
 
-    // Map aspect ratio to dimensions
-    const dimensions: Record<string, { width: number; height: number }> = {
-      "1:1": { width: 1024, height: 1024 },
-      "16:9": { width: 1344, height: 768 },
-      "9:16": { width: 768, height: 1344 },
-      "4:3": { width: 1152, height: 896 },
-      "3:2": { width: 1216, height: 832 }
-    };
-
-    const dims = dimensions[aspectRatio] || dimensions["1:1"];
-
-    // Call HuggingFace FLUX.1-schnell
-    const response = await fetch(
-      "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell",
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${HF_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          inputs: enhancedPrompt,
-          parameters: {
-            num_inference_steps: qualitySteps[quality] || 8,
-            guidance_scale: 3.5,
-            width: dims.width,
-            height: dims.height,
-            seed: seed,
-            negative_prompt: negativePrompt || "blurry, low quality, distorted"
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-image-preview",
+        messages: [
+          {
+            role: "user",
+            content: enhancedPrompt
           }
-        }),
-      }
-    );
+        ],
+        modalities: ["image", "text"]
+      }),
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("HuggingFace API error:", errorText);
-      throw new Error(`Image generation failed: ${response.status} - ${errorText}`);
+      console.error("Lovable AI error:", response.status, errorText);
+      throw new Error(`Image generation failed: ${response.status}`);
     }
 
-    // Convert blob to base64
-    const imageBlob = await response.blob();
-    const arrayBuffer = await imageBlob.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-    const imageUrl = `data:image/png;base64,${base64}`;
+    const data = await response.json();
+    console.log("Response received from Lovable AI");
+    
+    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    
+    if (!imageUrl) {
+      throw new Error("No image data in response");
+    }
+
+    console.log("Image generated successfully");
 
     return new Response(
       JSON.stringify({ imageUrl }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error in generate-image:", error);
-    const errorMessage = error instanceof Error ? error.message : "Failed to generate image";
+    const err = error as Error;
+    console.error("Error in generate-image:", err.message);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: err.message || "Failed to generate image" }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
