@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ImageToPrompt from "@/components/ImageToPrompt";
 import ImageGenerator from "@/components/ImageGenerator";
-import { Sparkles, Wand2 } from "lucide-react";
+import ImageEditor from "@/components/ImageEditor";
+import { Sparkles, Wand2, Pencil } from "lucide-react";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("prompt");
@@ -29,7 +30,7 @@ const Index = () => {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8 bg-card/30 backdrop-blur-xl border border-border/50 neon-glow">
+          <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-3 mb-8 bg-card/30 backdrop-blur-xl border border-border/50 neon-glow">
             <TabsTrigger 
               value="prompt" 
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-secondary data-[state=active]:text-primary-foreground data-[state=active]:neon-glow-strong"
@@ -44,6 +45,13 @@ const Index = () => {
               <Sparkles className="mr-2 h-4 w-4" />
               Image Generator
             </TabsTrigger>
+            <TabsTrigger 
+              value="edit"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-secondary data-[state=active]:text-primary-foreground data-[state=active]:neon-glow-strong"
+            >
+              <Pencil className="mr-2 h-4 w-4" />
+              Image Editor
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="prompt" className="mt-0">
@@ -52,6 +60,10 @@ const Index = () => {
 
           <TabsContent value="generate" className="mt-0">
             <ImageGenerator />
+          </TabsContent>
+
+          <TabsContent value="edit" className="mt-0">
+            <ImageEditor />
           </TabsContent>
         </Tabs>
 

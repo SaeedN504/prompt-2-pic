@@ -5,12 +5,14 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Sparkles, Download, RefreshCw } from "lucide-react";
+import { Sparkles, Download, RefreshCw, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export default function ImageGenerator() {
   const [prompt, setPrompt] = useState("");
+  const [magicPrompt, setMagicPrompt] = useState("");
+  const [isEnhancing, setIsEnhancing] = useState(false);
   const [style, setStyle] = useState("none");
   const [aspectRatio, setAspectRatio] = useState("1:1");
   const [quality, setQuality] = useState("medium");
@@ -19,8 +21,33 @@ export default function ImageGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
 
-  const handleGenerate = async () => {
+  const handleMagicPrompt = async () => {
     if (!prompt.trim()) {
+      toast.error("Please enter a simple prompt first");
+      return;
+    }
+
+    setIsEnhancing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("enhance-prompt", {
+        body: { prompt, type: "generate" },
+      });
+
+      if (error) throw error;
+
+      setMagicPrompt(data.enhancedPrompt);
+      toast.success("Prompt enhanced!");
+    } catch (error: any) {
+      console.error("Error enhancing prompt:", error);
+      toast.error(error.message || "Failed to enhance prompt");
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
+
+  const handleGenerate = async () => {
+    const finalPrompt = magicPrompt || prompt;
+    if (!finalPrompt.trim()) {
       toast.error("Please enter a prompt");
       return;
     }
@@ -29,7 +56,7 @@ export default function ImageGenerator() {
     try {
       const { data, error } = await supabase.functions.invoke("generate-image", {
         body: {
-          prompt,
+          prompt: finalPrompt,
           style: style !== "none" ? style : null,
           aspectRatio,
           quality,
@@ -67,14 +94,43 @@ export default function ImageGenerator() {
       {/* Controls */}
       <Card className="p-8 bg-card/30 backdrop-blur-xl border-border/50 neon-glow space-y-6">
         <div>
-          <Label className="text-sm font-medium mb-2 block">Prompt</Label>
+          <Label className="text-sm font-medium mb-2 block">Simple Prompt</Label>
           <Textarea
-            placeholder="Describe your image in detail..."
+            placeholder="Simple idea: futuristic city, cute cat, epic landscape..."
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            className="min-h-[120px] bg-card/50 border-border/50 focus:border-primary neon-glow resize-none"
+            className="min-h-[80px] bg-card/50 border-border/50 focus:border-primary neon-glow resize-none"
           />
+          <Button
+            onClick={handleMagicPrompt}
+            disabled={isEnhancing || !prompt.trim()}
+            variant="outline"
+            className="mt-2 w-full neon-glow"
+          >
+            {isEnhancing ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                Enhancing...
+              </>
+            ) : (
+              <>
+                <Wand2 className="mr-2 h-4 w-4" />
+                Magic Enhance Prompt
+              </>
+            )}
+          </Button>
         </div>
+
+        {magicPrompt && (
+          <div>
+            <Label className="text-sm font-medium mb-2 block">Enhanced Prompt</Label>
+            <Textarea
+              value={magicPrompt}
+              onChange={(e) => setMagicPrompt(e.target.value)}
+              className="min-h-[120px] bg-card/50 border-border/50 focus:border-primary neon-glow resize-none"
+            />
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -157,7 +213,7 @@ export default function ImageGenerator() {
 
         <Button
           onClick={handleGenerate}
-          disabled={isGenerating || !prompt.trim()}
+          disabled={isGenerating || (!prompt.trim() && !magicPrompt.trim())}
           className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-primary-foreground font-semibold py-6 neon-glow-strong"
         >
           {isGenerating ? (
