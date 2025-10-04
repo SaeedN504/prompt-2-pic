@@ -1,12 +1,38 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import ImageToPrompt from "@/components/ImageToPrompt";
 import ImageGenerator from "@/components/ImageGenerator";
 import ImageEditor from "@/components/ImageEditor";
-import { Sparkles, Wand2, Pencil } from "lucide-react";
+import { Auth } from "@/components/Auth";
+import { Sparkles, Wand2, Pencil, Images, LogOut } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("prompt");
+  const [user, setUser] = useState<any>(null);
+  const [showAuth, setShowAuth] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setShowAuth(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    toast.success("Signed out successfully");
+  };
 
   return (
     <div className="min-h-screen animated-gradient-bg">
@@ -20,6 +46,24 @@ const Index = () => {
       <div className="relative z-10 container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <header className="text-center mb-12 space-y-4">
+          <div className="flex justify-end gap-2 mb-4">
+            {user ? (
+              <>
+                <Button onClick={() => navigate("/gallery")} variant="outline" className="neon-glow">
+                  <Images className="mr-2 h-4 w-4" />
+                  Gallery
+                </Button>
+                <Button onClick={handleSignOut} variant="outline" className="neon-glow">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => setShowAuth(!showAuth)} variant="outline" className="neon-glow">
+                Sign In
+              </Button>
+            )}
+          </div>
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
             <span className="gradient-text">AI Creative Studio</span>
           </h1>
@@ -27,6 +71,12 @@ const Index = () => {
             Transform your ideas into stunning visuals with cutting-edge AI technology
           </p>
         </header>
+
+        {showAuth && !user && (
+          <div className="mb-8">
+            <Auth />
+          </div>
+        )}
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

@@ -5,10 +5,11 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Sparkles, Download, RefreshCw, Wand2 } from "lucide-react";
+import { Sparkles, Download, RefreshCw, Wand2, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useNavigate } from "react-router-dom";
 
 const imageGenSchema = z.object({
   prompt: z.string()
@@ -19,6 +20,7 @@ const imageGenSchema = z.object({
 });
 
 export default function ImageGenerator() {
+  const navigate = useNavigate();
   const [prompt, setPrompt] = useState("");
   const [magicPrompt, setMagicPrompt] = useState("");
   const [isEnhancing, setIsEnhancing] = useState(false);
@@ -29,6 +31,7 @@ export default function ImageGenerator() {
   const [negativePrompt, setNegativePrompt] = useState("blurry, text, watermark, low quality");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleMagicPrompt = async () => {
     if (!prompt.trim()) {
@@ -104,6 +107,41 @@ export default function ImageGenerator() {
 
   const randomizeSeed = () => {
     setSeed(Math.floor(Math.random() * 1000000));
+  };
+
+  const handleSaveToGallery = async (isPublic: boolean) => {
+    if (!generatedImage) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      toast.error("Please sign in to save images");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const finalPrompt = magicPrompt || prompt;
+      const { error } = await supabase
+        .from("gallery_images")
+        .insert({
+          user_id: user.id,
+          image_url: generatedImage,
+          prompt: finalPrompt,
+          style: style !== "none" ? style : null,
+          is_public: isPublic,
+        });
+
+      if (error) throw error;
+
+      toast.success(isPublic ? "Published to gallery!" : "Saved to your gallery");
+      navigate("/gallery");
+    } catch (error: any) {
+      console.error("Error saving to gallery:", error);
+      toast.error(error.message || "Failed to save image");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -261,10 +299,27 @@ export default function ImageGenerator() {
                 alt="Generated"
                 className="w-full rounded-lg shadow-2xl neon-glow-strong"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-end justify-center pb-8">
+              <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-end justify-center pb-8 gap-2">
                 <Button onClick={handleDownload} className="neon-glow-strong">
                   <Download className="mr-2 h-4 w-4" />
                   Download
+                </Button>
+                <Button 
+                  onClick={() => handleSaveToGallery(false)} 
+                  disabled={isSaving}
+                  variant="outline"
+                  className="neon-glow-strong"
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  Save
+                </Button>
+                <Button 
+                  onClick={() => handleSaveToGallery(true)} 
+                  disabled={isSaving}
+                  className="neon-glow-strong"
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Publish
                 </Button>
               </div>
             </div>

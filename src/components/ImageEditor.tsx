@@ -3,10 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Upload, Wand2, Download, RefreshCw } from "lucide-react";
+import { Upload, Wand2, Download, RefreshCw, Save, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useNavigate } from "react-router-dom";
 
 const imageEditSchema = z.object({
   prompt: z.string()
@@ -21,6 +22,7 @@ const imageEditSchema = z.object({
 });
 
 export default function ImageEditor() {
+  const navigate = useNavigate();
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
@@ -28,6 +30,7 @@ export default function ImageEditor() {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedImage, setEditedImage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -106,6 +109,41 @@ export default function ImageEditor() {
     link.href = editedImage;
     link.download = `ai-edited-${Date.now()}.png`;
     link.click();
+  };
+
+  const handleSaveToGallery = async (isPublic: boolean) => {
+    if (!editedImage) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      toast.error("Please sign in to save images");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const finalPrompt = magicPrompt || prompt;
+      const { error } = await supabase
+        .from("gallery_images")
+        .insert({
+          user_id: user.id,
+          image_url: editedImage,
+          prompt: finalPrompt,
+          style: null,
+          is_public: isPublic,
+        });
+
+      if (error) throw error;
+
+      toast.success(isPublic ? "Published to gallery!" : "Saved to your gallery");
+      navigate("/gallery");
+    } catch (error: any) {
+      console.error("Error saving to gallery:", error);
+      toast.error(error.message || "Failed to save image");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -204,10 +242,27 @@ export default function ImageEditor() {
                 alt="Edited"
                 className="w-full rounded-lg shadow-2xl neon-glow-strong"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-end justify-center pb-8">
+              <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-end justify-center pb-8 gap-2">
                 <Button onClick={handleDownload} className="neon-glow-strong">
                   <Download className="mr-2 h-4 w-4" />
                   Download
+                </Button>
+                <Button 
+                  onClick={() => handleSaveToGallery(false)} 
+                  disabled={isSaving}
+                  variant="outline"
+                  className="neon-glow-strong"
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  Save
+                </Button>
+                <Button 
+                  onClick={() => handleSaveToGallery(true)} 
+                  disabled={isSaving}
+                  className="neon-glow-strong"
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Publish
                 </Button>
               </div>
             </div>
