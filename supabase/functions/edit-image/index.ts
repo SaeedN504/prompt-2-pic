@@ -20,106 +20,55 @@ serve(async (req) => {
       throw new Error("Image and prompt are required");
     }
 
-    const DECART_API_KEY = Deno.env.get("DECART_API_KEY");
-    const DECART_API_KEY_BACKUP = Deno.env.get("DECART_API_KEY_BACKUP");
-    
-    console.log("API Keys available:", {
-      primary: !!DECART_API_KEY,
-      backup: !!DECART_API_KEY_BACKUP
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
+    console.log("Starting image editing with Lovable AI");
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-image-preview",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: prompt
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:image/png;base64,${imageBase64}`
+                }
+              }
+            ]
+          }
+        ],
+        modalities: ["image", "text"]
+      }),
     });
 
-    if (!DECART_API_KEY && !DECART_API_KEY_BACKUP) {
-      throw new Error("DECART_API_KEY is not configured");
-    }
-
-    console.log("Starting image editing with Decart.ai");
-
-    // Try primary key first
-    let apiKey = DECART_API_KEY;
-    let response: Response | null = null;
-    let lastError: Error | null = null;
-
-    if (apiKey) {
-      try {
-        console.log("Attempting with primary API key");
-        response = await fetch("https://api.decart.ai/v1/images/edit", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            image: `data:image/png;base64,${imageBase64}`,
-            prompt: prompt,
-            model: "decart-image-edit-v1",
-          }),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("Primary API key failed:", response.status, errorText);
-          lastError = new Error(`Primary key failed: ${response.status}`);
-          response = null;
-        } else {
-          console.log("Primary API key succeeded");
-        }
-      } catch (e) {
-        const error = e as Error;
-        console.error("Primary API key error:", error.message);
-        lastError = error;
-        response = null;
-      }
-    }
-
-    // If primary failed, try backup key
-    if (!response && DECART_API_KEY_BACKUP) {
-      console.log("Trying backup key");
-      apiKey = DECART_API_KEY_BACKUP;
-      
-      try {
-        response = await fetch("https://api.decart.ai/v1/images/edit", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            image: `data:image/png;base64,${imageBase64}`,
-            prompt: prompt,
-            model: "decart-image-edit-v1",
-          }),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("Backup API key also failed:", response.status, errorText);
-          throw new Error(`Both API keys failed. Last error: ${response.status}`);
-        } else {
-          console.log("Backup API key succeeded");
-        }
-      } catch (e) {
-        const error = e as Error;
-        console.error("Backup API key error:", error.message);
-        throw new Error(`Both API keys failed. Error: ${error.message}`);
-      }
-    }
-
-    if (!response) {
-      throw lastError || new Error("Failed to edit image with all available API keys");
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Lovable AI error:", response.status, errorText);
+      throw new Error(`Image editing failed: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log("Response data structure:", Object.keys(data));
+    console.log("Response received from Lovable AI");
     
-    if (!data.data?.[0]?.url && !data.data?.[0]?.b64_json) {
+    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    
+    if (!imageUrl) {
       throw new Error("No image data in response");
-    }
-
-    let imageUrl;
-    if (data.data[0].url) {
-      imageUrl = data.data[0].url;
-    } else if (data.data[0].b64_json) {
-      imageUrl = `data:image/png;base64,${data.data[0].b64_json}`;
     }
 
     console.log("Image edited successfully");
