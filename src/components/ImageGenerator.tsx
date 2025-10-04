@@ -8,6 +8,15 @@ import { Slider } from "@/components/ui/slider";
 import { Sparkles, Download, RefreshCw, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { z } from "zod";
+
+const imageGenSchema = z.object({
+  prompt: z.string()
+    .min(1, "Prompt is required")
+    .max(5000, "Prompt must be less than 5000 characters"),
+  style: z.enum(["none", "photorealistic", "anime", "fantasy", "vintage", "cinematic", "abstract", "watercolor", "oil-painting"]),
+  seed: z.number().min(0).max(999999),
+});
 
 export default function ImageGenerator() {
   const [prompt, setPrompt] = useState("");
@@ -46,9 +55,17 @@ export default function ImageGenerator() {
   };
 
   const handleGenerate = async () => {
+    // Validate inputs
     const finalPrompt = magicPrompt || prompt;
-    if (!finalPrompt.trim()) {
-      toast.error("Please enter a prompt");
+    const validation = imageGenSchema.safeParse({
+      prompt: finalPrompt,
+      style,
+      seed,
+    });
+
+    if (!validation.success) {
+      const errors = validation.error.errors.map((e) => e.message).join(", ");
+      toast.error(errors);
       return;
     }
 
@@ -100,7 +117,11 @@ export default function ImageGenerator() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             className="min-h-[80px] bg-card/50 border-border/50 focus:border-primary neon-glow resize-none"
+            maxLength={5000}
           />
+          <p className="text-xs text-muted-foreground mt-1">
+            {prompt.length}/5000 characters
+          </p>
           <Button
             onClick={handleMagicPrompt}
             disabled={isEnhancing || !prompt.trim()}

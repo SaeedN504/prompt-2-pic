@@ -13,8 +13,21 @@ serve(async (req) => {
   try {
     const { prompt, type = "generate" } = await req.json();
     
+    // Input validation
     if (!prompt) {
       throw new Error("Prompt is required");
+    }
+    
+    if (typeof prompt !== 'string') {
+      throw new Error("Invalid prompt format");
+    }
+    
+    if (prompt.length > 5000) {
+      throw new Error("Prompt exceeds maximum length");
+    }
+    
+    if (type && !['generate', 'edit', 'prompt-to-prompt'].includes(type)) {
+      throw new Error("Invalid type parameter");
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -108,10 +121,18 @@ Output: "A sprawling neon-lit cyberpunk metropolis at night, with towering skysc
     );
   } catch (error: any) {
     console.error("Error in enhance-prompt function:", error);
+    
+    // Return generic error to user, log details server-side
+    const userMessage = error.message?.includes("maximum length") || 
+                       error.message?.includes("required") ||
+                       error.message?.includes("Invalid")
+      ? error.message 
+      : "Failed to enhance prompt. Please try again.";
+    
     return new Response(
-      JSON.stringify({ error: error.message || "Failed to enhance prompt" }),
+      JSON.stringify({ error: userMessage }),
       { 
-        status: 500,
+        status: error.message?.includes("Invalid") || error.message?.includes("required") ? 400 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
     );

@@ -15,6 +15,24 @@ serve(async (req) => {
   try {
     const { prompt, style, aspectRatio, quality } = await req.json();
     console.log("Received request with prompt:", prompt?.substring(0, 50));
+    
+    // Input validation
+    if (!prompt) {
+      throw new Error("Prompt is required");
+    }
+    
+    if (typeof prompt !== 'string') {
+      throw new Error("Invalid prompt format");
+    }
+    
+    if (prompt.length > 5000) {
+      throw new Error("Prompt exceeds maximum length of 5000 characters");
+    }
+    
+    const validStyles = ["none", "photorealistic", "anime", "fantasy", "vintage", "cinematic", "abstract", "watercolor", "oil-painting"];
+    if (style && !validStyles.includes(style)) {
+      throw new Error("Invalid style parameter");
+    }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -81,10 +99,19 @@ serve(async (req) => {
   } catch (error) {
     const err = error as Error;
     console.error("Error in generate-image:", err.message);
+    
+    // Return generic error to user, log details server-side
+    const userMessage = err.message?.includes("required") || 
+                       err.message?.includes("Invalid") ||
+                       err.message?.includes("exceeds") ||
+                       err.message?.includes("limit")
+      ? err.message 
+      : "Failed to generate image. Please try again.";
+    
     return new Response(
-      JSON.stringify({ error: err.message || "Failed to generate image" }),
+      JSON.stringify({ error: userMessage }),
       {
-        status: 500,
+        status: err.message?.includes("Invalid") || err.message?.includes("required") ? 400 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
     );

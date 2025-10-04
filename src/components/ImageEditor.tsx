@@ -6,6 +6,19 @@ import { Label } from "@/components/ui/label";
 import { Upload, Wand2, Download, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { z } from "zod";
+
+const imageEditSchema = z.object({
+  prompt: z.string()
+    .min(1, "Prompt is required")
+    .max(5000, "Prompt must be less than 5000 characters"),
+  imageFile: z.instanceof(File)
+    .refine((file) => file.size <= 10 * 1024 * 1024, "Image must be less than 10MB")
+    .refine(
+      (file) => ["image/png", "image/jpeg", "image/jpg", "image/webp"].includes(file.type),
+      "Only PNG, JPEG, and WEBP images are supported"
+    ),
+});
 
 export default function ImageEditor() {
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -51,14 +64,16 @@ export default function ImageEditor() {
   };
 
   const handleEdit = async () => {
-    if (!imageFile) {
-      toast.error("Please upload an image");
-      return;
-    }
-
+    // Validate inputs
     const finalPrompt = magicPrompt || prompt;
-    if (!finalPrompt.trim()) {
-      toast.error("Please enter an editing instruction");
+    const validation = imageEditSchema.safeParse({
+      prompt: finalPrompt,
+      imageFile,
+    });
+
+    if (!validation.success) {
+      const errors = validation.error.errors.map((e) => e.message).join(", ");
+      toast.error(errors);
       return;
     }
 
@@ -124,7 +139,11 @@ export default function ImageEditor() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             className="min-h-[80px] bg-card/50 border-border/50 focus:border-primary neon-glow resize-none"
+            maxLength={5000}
           />
+          <p className="text-xs text-muted-foreground mt-1">
+            {prompt.length}/5000 characters
+          </p>
           <Button
             onClick={handleMagicPrompt}
             disabled={isEnhancing || !prompt.trim()}

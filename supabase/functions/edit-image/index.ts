@@ -16,8 +16,28 @@ serve(async (req) => {
     const { imageBase64, prompt } = await req.json();
     console.log("Received request with prompt:", prompt?.substring(0, 50));
 
+    // Input validation
     if (!imageBase64 || !prompt) {
       throw new Error("Image and prompt are required");
+    }
+    
+    if (typeof prompt !== 'string' || typeof imageBase64 !== 'string') {
+      throw new Error("Invalid input format");
+    }
+    
+    if (prompt.length > 5000) {
+      throw new Error("Prompt exceeds maximum length of 5000 characters");
+    }
+    
+    // Validate base64 image size (roughly 10MB limit when encoded)
+    const estimatedSize = (imageBase64.length * 3) / 4;
+    if (estimatedSize > 10 * 1024 * 1024) {
+      throw new Error("Image size exceeds 10MB limit");
+    }
+    
+    // Basic base64 format validation
+    if (!/^[A-Za-z0-9+/=]+$/.test(imageBase64)) {
+      throw new Error("Invalid image format");
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -80,10 +100,19 @@ serve(async (req) => {
   } catch (error) {
     const err = error as Error;
     console.error("Error in edit-image function:", err.message);
+    
+    // Return generic error to user, log details server-side
+    const userMessage = err.message?.includes("required") || 
+                       err.message?.includes("Invalid") ||
+                       err.message?.includes("exceeds") ||
+                       err.message?.includes("limit")
+      ? err.message 
+      : "Failed to edit image. Please try again.";
+    
     return new Response(
-      JSON.stringify({ error: err.message || "Failed to edit image" }),
+      JSON.stringify({ error: userMessage }),
       { 
-        status: 500,
+        status: err.message?.includes("Invalid") || err.message?.includes("required") ? 400 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
     );
