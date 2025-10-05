@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useNavigate } from "react-router-dom";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useStateWithLocalStorage } from "@/hooks/useStateWithLocalStorage";
 
 const imageEditSchema = z.object({
   prompt: z.string()
@@ -23,13 +25,14 @@ const imageEditSchema = z.object({
 
 export default function ImageEditor() {
   const navigate = useNavigate();
+  const { t, language } = useLanguage();
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [prompt, setPrompt] = useState("");
-  const [magicPrompt, setMagicPrompt] = useState("");
+  const [prompt, setPrompt] = useStateWithLocalStorage("editor.prompt", "");
+  const [magicPrompt, setMagicPrompt] = useStateWithLocalStorage("editor.magicPrompt", "");
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editedImage, setEditedImage] = useState<string | null>(null);
+  const [editedImage, setEditedImage] = useStateWithLocalStorage<string | null>("editor.editedImage", null);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,22 +45,28 @@ export default function ImageEditor() {
     }
   };
 
+  const translateToEnglish = async (text: string): Promise<string> => {
+    if (language === "en") return text;
+    return text;
+  };
+
   const handleMagicPrompt = async () => {
     if (!prompt.trim()) {
-      toast.error("Please enter a simple prompt first");
+      toast.error(t("toast.enterPrompt"));
       return;
     }
 
     setIsEnhancing(true);
     try {
+      const englishPrompt = await translateToEnglish(prompt);
       const { data, error } = await supabase.functions.invoke("enhance-prompt", {
-        body: { prompt, type: "edit" },
+        body: { prompt: englishPrompt, type: "edit" },
       });
 
       if (error) throw error;
 
       setMagicPrompt(data.enhancedPrompt);
-      toast.success("Prompt enhanced!");
+      toast.success(t("toast.promptEnhanced"));
     } catch (error: any) {
       console.error("Error enhancing prompt:", error);
       toast.error(error.message || "Failed to enhance prompt");
@@ -67,7 +76,6 @@ export default function ImageEditor() {
   };
 
   const handleEdit = async () => {
-    // Validate inputs
     const finalPrompt = magicPrompt || prompt;
     const validation = imageEditSchema.safeParse({
       prompt: finalPrompt,
@@ -83,18 +91,19 @@ export default function ImageEditor() {
     setIsEditing(true);
     try {
       const base64Image = imagePreview?.split(",")[1];
+      const englishPrompt = await translateToEnglish(finalPrompt);
 
       const { data, error } = await supabase.functions.invoke("edit-image", {
         body: {
           imageBase64: base64Image,
-          prompt: finalPrompt,
+          prompt: englishPrompt,
         },
       });
 
       if (error) throw error;
 
       setEditedImage(data.imageUrl);
-      toast.success("Image edited successfully!");
+      toast.success(t("toast.imageEdited"));
     } catch (error: any) {
       console.error("Error editing image:", error);
       toast.error(error.message || "Failed to edit image");
@@ -117,7 +126,7 @@ export default function ImageEditor() {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-      toast.error("Please sign in to save images");
+      toast.error(t("toast.pleaseSignIn"));
       return;
     }
 
@@ -136,7 +145,7 @@ export default function ImageEditor() {
 
       if (error) throw error;
 
-      toast.success(isPublic ? "Published to gallery!" : "Saved to your gallery");
+      toast.success(isPublic ? t("toast.publishedToGallery") : t("toast.savedToGallery"));
       navigate("/gallery");
     } catch (error: any) {
       console.error("Error saving to gallery:", error);
@@ -149,9 +158,9 @@ export default function ImageEditor() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {/* Controls */}
-      <Card className="p-8 bg-card/30 backdrop-blur-xl border-border/50 neon-glow space-y-6">
+      <Card className="p-8 bg-card/30 backdrop-blur-xl border-border/50 neon-glow space-y-6 animate-slide-in">
         <div>
-          <Label className="text-sm font-medium mb-2 block">Upload Image</Label>
+          <Label className="text-sm font-medium mb-2 block">{t("editor.uploadImage")}</Label>
           <label
             htmlFor="edit-image-upload"
             className="w-full h-64 flex flex-col items-center justify-center border-2 border-dashed border-primary/50 rounded-xl cursor-pointer hover:border-primary transition-all hover:neon-glow-strong relative overflow-hidden group"
@@ -160,9 +169,9 @@ export default function ImageEditor() {
               <img src={imagePreview} alt="Preview" className="w-full h-full object-contain rounded-xl" />
             ) : (
               <div className="text-center space-y-4">
-                <Upload className="mx-auto h-12 w-12 text-primary animate-float" />
-                <p className="text-sm font-medium gradient-text">Upload image to edit</p>
-                <p className="text-xs text-muted-foreground">PNG, JPG up to 10MB</p>
+                <Upload className="mx-auto h-12 w-12 text-primary animate-bounce-slow" />
+                <p className="text-sm font-medium gradient-text">{t("editor.uploadPrompt")}</p>
+                <p className="text-xs text-muted-foreground">{t("editor.uploadInfo")}</p>
               </div>
             )}
             <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -170,82 +179,88 @@ export default function ImageEditor() {
           <input id="edit-image-upload" type="file" className="sr-only" accept="image/*" onChange={handleImageUpload} />
         </div>
 
-        <div>
-          <Label className="text-sm font-medium mb-2 block">Simple Prompt</Label>
-          <Textarea
-            placeholder="Simple idea: make it sunny, add flowers, change to night..."
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            className="min-h-[80px] bg-card/50 border-border/50 focus:border-primary neon-glow resize-none"
-            maxLength={5000}
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            {prompt.length}/5000 characters
-          </p>
-          <Button
-            onClick={handleMagicPrompt}
-            disabled={isEnhancing || !prompt.trim()}
-            variant="outline"
-            className="mt-2 w-full neon-glow"
-          >
-            {isEnhancing ? (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Enhancing...
-              </>
-            ) : (
-              <>
-                <Wand2 className="mr-2 h-4 w-4" />
-                Magic Enhance Prompt
-              </>
-            )}
-          </Button>
+        <div className="running-border">
+          <div className="bg-card p-4 rounded-md">
+            <Label className="text-sm font-medium mb-2 block">{t("generator.simplePrompt")}</Label>
+            <Textarea
+              placeholder={t("editor.editPrompt")}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              className="min-h-[80px] bg-card/50 border-border/50 focus:border-primary resize-none transition-all"
+              maxLength={5000}
+              showCopy={true}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              {prompt.length}/5000
+            </p>
+            <Button
+              onClick={handleMagicPrompt}
+              disabled={isEnhancing || !prompt.trim()}
+              variant="outline"
+              className="mt-2 w-full neon-glow"
+            >
+              {isEnhancing ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  {t("generator.enhancing")}
+                </>
+              ) : (
+                <>
+                  <Wand2 className="mr-2 h-4 w-4" />
+                  {t("generator.magicEnhance")}
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
         {magicPrompt && (
-          <div>
-            <Label className="text-sm font-medium mb-2 block">Enhanced Prompt</Label>
-            <Textarea
-              value={magicPrompt}
-              onChange={(e) => setMagicPrompt(e.target.value)}
-              className="min-h-[120px] bg-card/50 border-border/50 focus:border-primary neon-glow resize-none"
-            />
+          <div className="running-border">
+            <div className="bg-card p-4 rounded-md">
+              <Label className="text-sm font-medium mb-2 block">{t("generator.enhancedPrompt")}</Label>
+              <Textarea
+                value={magicPrompt}
+                onChange={(e) => setMagicPrompt(e.target.value)}
+                className="min-h-[120px] bg-card/50 border-border/50 focus:border-primary resize-none transition-all"
+                showCopy={true}
+              />
+            </div>
           </div>
         )}
 
         <Button
           onClick={handleEdit}
           disabled={isEditing || !imageFile || (!prompt.trim() && !magicPrompt.trim())}
-          className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-primary-foreground font-semibold py-6 neon-glow-strong"
+          className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-primary-foreground font-semibold py-6 neon-glow-strong animate-pulse-glow"
         >
           {isEditing ? (
             <>
               <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
-              Editing Image...
+              {t("editor.editingImage")}
             </>
           ) : (
             <>
               <Wand2 className="mr-2 h-5 w-5" />
-              Edit Image
+              {t("editor.editImage")}
             </>
           )}
         </Button>
       </Card>
 
       {/* Preview */}
-      <Card className="p-8 bg-card/30 backdrop-blur-xl border-border/50 neon-glow flex flex-col items-center justify-center min-h-[600px]">
+      <Card className="p-8 bg-card/30 backdrop-blur-xl border-border/50 neon-glow flex flex-col items-center justify-center min-h-[600px] animate-fade-in-up">
         {editedImage ? (
           <div className="w-full space-y-4">
             <div className="relative group">
               <img
                 src={editedImage}
                 alt="Edited"
-                className="w-full rounded-lg shadow-2xl neon-glow-strong"
+                className="w-full rounded-lg shadow-2xl neon-glow-strong transition-transform hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-end justify-center pb-8 gap-2">
                 <Button onClick={handleDownload} className="neon-glow-strong">
                   <Download className="mr-2 h-4 w-4" />
-                  Download
+                  {t("common.download")}
                 </Button>
                 <Button 
                   onClick={() => handleSaveToGallery(false)} 
@@ -254,7 +269,7 @@ export default function ImageEditor() {
                   className="neon-glow-strong"
                 >
                   <Save className="mr-2 h-4 w-4" />
-                  Save
+                  {t("common.save")}
                 </Button>
                 <Button 
                   onClick={() => handleSaveToGallery(true)} 
@@ -262,7 +277,7 @@ export default function ImageEditor() {
                   className="neon-glow-strong"
                 >
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Publish
+                  {t("common.publish")}
                 </Button>
               </div>
             </div>
@@ -270,9 +285,9 @@ export default function ImageEditor() {
         ) : (
           <div className="text-center space-y-4">
             <div className="w-32 h-32 mx-auto rounded-full bg-gradient-to-r from-primary/20 to-secondary/20 flex items-center justify-center neon-glow animate-neon-pulse">
-              <Wand2 className="h-16 w-16 text-primary" />
+              <Wand2 className="h-16 w-16 text-primary animate-rotate-slow" />
             </div>
-            <p className="text-muted-foreground">Your edited image will appear here</p>
+            <p className="text-muted-foreground">{t("editor.imagePreview")}</p>
           </div>
         )}
       </Card>

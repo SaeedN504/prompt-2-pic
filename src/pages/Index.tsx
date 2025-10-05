@@ -5,13 +5,16 @@ import ImageToPrompt from "@/components/ImageToPrompt";
 import ImageGenerator from "@/components/ImageGenerator";
 import ImageEditor from "@/components/ImageEditor";
 import { Auth } from "@/components/Auth";
-import { Sparkles, Wand2, Pencil, Images, LogOut } from "lucide-react";
+import { Sparkles, Wand2, Pencil, Images, LogOut, Languages } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useStateWithLocalStorage } from "@/hooks/useStateWithLocalStorage";
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState("prompt");
+  const { language, setLanguage, t } = useLanguage();
+  const [activeTab, setActiveTab] = useStateWithLocalStorage("activeTab", "prompt");
   const [user, setUser] = useState<any>(null);
   const [showAuth, setShowAuth] = useState(false);
   const navigate = useNavigate();
@@ -31,7 +34,11 @@ const Index = () => {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    toast.success("Signed out successfully");
+    toast.success(t("toast.signedOut"));
+  };
+
+  const toggleLanguage = () => {
+    setLanguage(language === "en" ? "fa" : "en");
   };
 
   return (
@@ -45,30 +52,34 @@ const Index = () => {
 
       <div className="relative z-10 container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
-        <header className="text-center mb-12 space-y-4">
+        <header className="text-center mb-12 space-y-4 animate-fade-in-up">
           <div className="flex justify-end gap-2 mb-4">
+            <Button onClick={toggleLanguage} variant="outline" className="neon-glow animate-pulse-glow">
+              <Languages className="mr-2 h-4 w-4" />
+              {language === "en" ? "فارسی" : "English"}
+            </Button>
             {user ? (
               <>
                 <Button onClick={() => navigate("/gallery")} variant="outline" className="neon-glow">
                   <Images className="mr-2 h-4 w-4" />
-                  Gallery
+                  {t("header.gallery")}
                 </Button>
                 <Button onClick={handleSignOut} variant="outline" className="neon-glow">
                   <LogOut className="mr-2 h-4 w-4" />
-                  Sign Out
+                  {t("header.signOut")}
                 </Button>
               </>
             ) : (
               <Button onClick={() => setShowAuth(!showAuth)} variant="outline" className="neon-glow">
-                Sign In
+                {t("header.signIn")}
               </Button>
             )}
           </div>
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
-            <span className="gradient-text">AI Creative Studio</span>
+          <h1 className="text-5xl md:text-7xl font-bold tracking-tight animate-bounce-slow">
+            <span className="gradient-text">{t("header.title")}</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Transform your ideas into stunning visuals with cutting-edge AI technology
+            {t("header.subtitle")}
           </p>
         </header>
 
@@ -83,24 +94,24 @@ const Index = () => {
           <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-3 mb-8 bg-card/30 backdrop-blur-xl border border-border/50 neon-glow">
             <TabsTrigger 
               value="prompt" 
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-secondary data-[state=active]:text-primary-foreground data-[state=active]:neon-glow-strong"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-secondary data-[state=active]:text-primary-foreground data-[state=active]:neon-glow-strong transition-all"
             >
               <Wand2 className="mr-2 h-4 w-4" />
-              Image to Prompt
+              {t("tab.imageToPrompt")}
             </TabsTrigger>
             <TabsTrigger 
               value="generate"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-secondary data-[state=active]:text-primary-foreground data-[state=active]:neon-glow-strong"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-secondary data-[state=active]:text-primary-foreground data-[state=active]:neon-glow-strong transition-all"
             >
               <Sparkles className="mr-2 h-4 w-4" />
-              Image Generator
+              {t("tab.imageGenerator")}
             </TabsTrigger>
             <TabsTrigger 
               value="edit"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-secondary data-[state=active]:text-primary-foreground data-[state=active]:neon-glow-strong"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-secondary data-[state=active]:text-primary-foreground data-[state=active]:neon-glow-strong transition-all"
             >
               <Pencil className="mr-2 h-4 w-4" />
-              Image Editor
+              {t("tab.imageEditor")}
             </TabsTrigger>
           </TabsList>
 

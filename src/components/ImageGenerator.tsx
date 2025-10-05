@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useNavigate } from "react-router-dom";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useStateWithLocalStorage } from "@/hooks/useStateWithLocalStorage";
 
 const imageGenSchema = z.object({
   prompt: z.string()
@@ -21,34 +23,42 @@ const imageGenSchema = z.object({
 
 export default function ImageGenerator() {
   const navigate = useNavigate();
-  const [prompt, setPrompt] = useState("");
-  const [magicPrompt, setMagicPrompt] = useState("");
+  const { t, language } = useLanguage();
+  const [prompt, setPrompt] = useStateWithLocalStorage("generator.prompt", "");
+  const [magicPrompt, setMagicPrompt] = useStateWithLocalStorage("generator.magicPrompt", "");
   const [isEnhancing, setIsEnhancing] = useState(false);
-  const [style, setStyle] = useState("none");
-  const [aspectRatio, setAspectRatio] = useState("1:1");
-  const [quality, setQuality] = useState("medium");
-  const [seed, setSeed] = useState<number>(Math.floor(Math.random() * 1000000));
-  const [negativePrompt, setNegativePrompt] = useState("blurry, text, watermark, low quality");
+  const [style, setStyle] = useStateWithLocalStorage("generator.style", "none");
+  const [aspectRatio, setAspectRatio] = useStateWithLocalStorage("generator.aspectRatio", "1:1");
+  const [quality, setQuality] = useStateWithLocalStorage("generator.quality", "medium");
+  const [seed, setSeed] = useStateWithLocalStorage("generator.seed", Math.floor(Math.random() * 1000000));
+  const [negativePrompt, setNegativePrompt] = useStateWithLocalStorage("generator.negativePrompt", "blurry, text, watermark, low quality");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [generatedImage, setGeneratedImage] = useStateWithLocalStorage<string | null>("generator.generatedImage", null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const translateToEnglish = async (text: string): Promise<string> => {
+    if (language === "en") return text;
+    // For Farsi, we'll send it as-is to the API which will handle translation
+    return text;
+  };
 
   const handleMagicPrompt = async () => {
     if (!prompt.trim()) {
-      toast.error("Please enter a simple prompt first");
+      toast.error(t("toast.enterPrompt"));
       return;
     }
 
     setIsEnhancing(true);
     try {
+      const englishPrompt = await translateToEnglish(prompt);
       const { data, error } = await supabase.functions.invoke("enhance-prompt", {
-        body: { prompt, type: "generate" },
+        body: { prompt: englishPrompt, type: "generate" },
       });
 
       if (error) throw error;
 
       setMagicPrompt(data.enhancedPrompt);
-      toast.success("Prompt enhanced!");
+      toast.success(t("toast.promptEnhanced"));
     } catch (error: any) {
       console.error("Error enhancing prompt:", error);
       toast.error(error.message || "Failed to enhance prompt");
@@ -58,7 +68,6 @@ export default function ImageGenerator() {
   };
 
   const handleGenerate = async () => {
-    // Validate inputs
     const finalPrompt = magicPrompt || prompt;
     const validation = imageGenSchema.safeParse({
       prompt: finalPrompt,
@@ -74,9 +83,10 @@ export default function ImageGenerator() {
 
     setIsGenerating(true);
     try {
+      const englishPrompt = await translateToEnglish(finalPrompt);
       const { data, error } = await supabase.functions.invoke("generate-image", {
         body: {
-          prompt: finalPrompt,
+          prompt: englishPrompt,
           style: style !== "none" ? style : null,
           aspectRatio,
           quality,
@@ -88,7 +98,7 @@ export default function ImageGenerator() {
       if (error) throw error;
 
       setGeneratedImage(data.imageUrl);
-      toast.success("Image generated successfully!");
+      toast.success(t("toast.imageGenerated"));
     } catch (error: any) {
       console.error("Error generating image:", error);
       toast.error(error.message || "Failed to generate image");
@@ -115,7 +125,7 @@ export default function ImageGenerator() {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-      toast.error("Please sign in to save images");
+      toast.error(t("toast.pleaseSignIn"));
       return;
     }
 
@@ -134,7 +144,7 @@ export default function ImageGenerator() {
 
       if (error) throw error;
 
-      toast.success(isPublic ? "Published to gallery!" : "Saved to your gallery");
+      toast.success(isPublic ? t("toast.publishedToGallery") : t("toast.savedToGallery"));
       navigate("/gallery");
     } catch (error: any) {
       console.error("Error saving to gallery:", error);
@@ -147,106 +157,112 @@ export default function ImageGenerator() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {/* Controls */}
-      <Card className="p-8 bg-card/30 backdrop-blur-xl border-border/50 neon-glow space-y-6">
-        <div>
-          <Label className="text-sm font-medium mb-2 block">Simple Prompt</Label>
-          <Textarea
-            placeholder="Simple idea: futuristic city, cute cat, epic landscape..."
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            className="min-h-[80px] bg-card/50 border-border/50 focus:border-primary neon-glow resize-none"
-            maxLength={5000}
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            {prompt.length}/5000 characters
-          </p>
-          <Button
-            onClick={handleMagicPrompt}
-            disabled={isEnhancing || !prompt.trim()}
-            variant="outline"
-            className="mt-2 w-full neon-glow"
-          >
-            {isEnhancing ? (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Enhancing...
-              </>
-            ) : (
-              <>
-                <Wand2 className="mr-2 h-4 w-4" />
-                Magic Enhance Prompt
-              </>
-            )}
-          </Button>
+      <Card className="p-8 bg-card/30 backdrop-blur-xl border-border/50 neon-glow space-y-6 animate-slide-in">
+        <div className="running-border">
+          <div className="bg-card p-4 rounded-md">
+            <Label className="text-sm font-medium mb-2 block">{t("generator.simplePrompt")}</Label>
+            <Textarea
+              placeholder={t("generator.simplePromptPlaceholder")}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              className="min-h-[80px] bg-card/50 border-border/50 focus:border-primary resize-none transition-all"
+              maxLength={5000}
+              showCopy={true}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              {prompt.length}/5000
+            </p>
+            <Button
+              onClick={handleMagicPrompt}
+              disabled={isEnhancing || !prompt.trim()}
+              variant="outline"
+              className="mt-2 w-full neon-glow"
+            >
+              {isEnhancing ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  {t("generator.enhancing")}
+                </>
+              ) : (
+                <>
+                  <Wand2 className="mr-2 h-4 w-4" />
+                  {t("generator.magicEnhance")}
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
         {magicPrompt && (
-          <div>
-            <Label className="text-sm font-medium mb-2 block">Enhanced Prompt</Label>
-            <Textarea
-              value={magicPrompt}
-              onChange={(e) => setMagicPrompt(e.target.value)}
-              className="min-h-[120px] bg-card/50 border-border/50 focus:border-primary neon-glow resize-none"
-            />
+          <div className="running-border">
+            <div className="bg-card p-4 rounded-md">
+              <Label className="text-sm font-medium mb-2 block">{t("generator.enhancedPrompt")}</Label>
+              <Textarea
+                value={magicPrompt}
+                onChange={(e) => setMagicPrompt(e.target.value)}
+                className="min-h-[120px] bg-card/50 border-border/50 focus:border-primary resize-none transition-all"
+                showCopy={true}
+              />
+            </div>
           </div>
         )}
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label className="text-sm font-medium mb-2 block">Style</Label>
+            <Label className="text-sm font-medium mb-2 block">{t("generator.style")}</Label>
             <Select value={style} onValueChange={setStyle}>
               <SelectTrigger className="bg-card/50 border-border/50 neon-glow">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                <SelectItem value="photorealistic">Photorealistic</SelectItem>
-                <SelectItem value="anime">Anime</SelectItem>
-                <SelectItem value="fantasy">Fantasy</SelectItem>
-                <SelectItem value="vintage">Vintage</SelectItem>
-                <SelectItem value="cinematic">Cinematic</SelectItem>
-                <SelectItem value="abstract">Abstract</SelectItem>
-                <SelectItem value="watercolor">Watercolor</SelectItem>
-                <SelectItem value="oil-painting">Oil Painting</SelectItem>
+                <SelectItem value="none">{t("style.none")}</SelectItem>
+                <SelectItem value="photorealistic">{t("style.photorealistic")}</SelectItem>
+                <SelectItem value="anime">{t("style.anime")}</SelectItem>
+                <SelectItem value="fantasy">{t("style.fantasy")}</SelectItem>
+                <SelectItem value="vintage">{t("style.vintage")}</SelectItem>
+                <SelectItem value="cinematic">{t("style.cinematic")}</SelectItem>
+                <SelectItem value="abstract">{t("style.abstract")}</SelectItem>
+                <SelectItem value="watercolor">{t("style.watercolor")}</SelectItem>
+                <SelectItem value="oil-painting">{t("style.oilPainting")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div>
-            <Label className="text-sm font-medium mb-2 block">Aspect Ratio</Label>
+            <Label className="text-sm font-medium mb-2 block">{t("generator.aspectRatio")}</Label>
             <Select value={aspectRatio} onValueChange={setAspectRatio}>
               <SelectTrigger className="bg-card/50 border-border/50 neon-glow">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="1:1">Square (1:1)</SelectItem>
-                <SelectItem value="16:9">Landscape (16:9)</SelectItem>
-                <SelectItem value="9:16">Portrait (9:16)</SelectItem>
-                <SelectItem value="4:3">Standard (4:3)</SelectItem>
-                <SelectItem value="3:2">Photo (3:2)</SelectItem>
+                <SelectItem value="1:1">{t("ratio.square")}</SelectItem>
+                <SelectItem value="16:9">{t("ratio.landscape")}</SelectItem>
+                <SelectItem value="9:16">{t("ratio.portrait")}</SelectItem>
+                <SelectItem value="4:3">{t("ratio.standard")}</SelectItem>
+                <SelectItem value="3:2">{t("ratio.photo")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
 
         <div>
-          <Label className="text-sm font-medium mb-2 block">Quality</Label>
+          <Label className="text-sm font-medium mb-2 block">{t("generator.quality")}</Label>
           <Select value={quality} onValueChange={setQuality}>
             <SelectTrigger className="bg-card/50 border-border/50 neon-glow">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="draft">Draft (Fast)</SelectItem>
-              <SelectItem value="medium">Medium (Balanced)</SelectItem>
-              <SelectItem value="high">High (Detailed)</SelectItem>
-              <SelectItem value="ultra">Ultra (Maximum Quality)</SelectItem>
+              <SelectItem value="draft">{t("quality.draft")}</SelectItem>
+              <SelectItem value="medium">{t("quality.medium")}</SelectItem>
+              <SelectItem value="high">{t("quality.high")}</SelectItem>
+              <SelectItem value="ultra">{t("quality.ultra")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <Label className="text-sm font-medium">Seed: {seed}</Label>
+            <Label className="text-sm font-medium">{t("generator.seed")}: {seed}</Label>
             <Button size="sm" variant="ghost" onClick={randomizeSeed} className="neon-glow">
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -261,48 +277,49 @@ export default function ImageGenerator() {
         </div>
 
         <div>
-          <Label className="text-sm font-medium mb-2 block">Negative Prompt</Label>
+          <Label className="text-sm font-medium mb-2 block">{t("generator.negativePrompt")}</Label>
           <Textarea
-            placeholder="What to avoid..."
+            placeholder={t("generator.negativePromptPlaceholder")}
             value={negativePrompt}
             onChange={(e) => setNegativePrompt(e.target.value)}
-            className="min-h-[80px] bg-card/50 border-border/50 focus:border-primary neon-glow resize-none"
+            className="min-h-[80px] bg-card/50 border-border/50 focus:border-primary resize-none"
+            showCopy={true}
           />
         </div>
 
         <Button
           onClick={handleGenerate}
           disabled={isGenerating || (!prompt.trim() && !magicPrompt.trim())}
-          className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-primary-foreground font-semibold py-6 neon-glow-strong"
+          className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-primary-foreground font-semibold py-6 neon-glow-strong animate-pulse-glow"
         >
           {isGenerating ? (
             <>
               <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
-              Generating Image...
+              {t("generator.generatingImage")}
             </>
           ) : (
             <>
               <Sparkles className="mr-2 h-5 w-5" />
-              Generate Image
+              {t("generator.generateImage")}
             </>
           )}
         </Button>
       </Card>
 
       {/* Preview */}
-      <Card className="p-8 bg-card/30 backdrop-blur-xl border-border/50 neon-glow flex flex-col items-center justify-center min-h-[600px]">
+      <Card className="p-8 bg-card/30 backdrop-blur-xl border-border/50 neon-glow flex flex-col items-center justify-center min-h-[600px] animate-fade-in-up">
         {generatedImage ? (
           <div className="w-full space-y-4">
             <div className="relative group">
               <img
                 src={generatedImage}
                 alt="Generated"
-                className="w-full rounded-lg shadow-2xl neon-glow-strong"
+                className="w-full rounded-lg shadow-2xl neon-glow-strong transition-transform hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-end justify-center pb-8 gap-2">
                 <Button onClick={handleDownload} className="neon-glow-strong">
                   <Download className="mr-2 h-4 w-4" />
-                  Download
+                  {t("common.download")}
                 </Button>
                 <Button 
                   onClick={() => handleSaveToGallery(false)} 
@@ -311,7 +328,7 @@ export default function ImageGenerator() {
                   className="neon-glow-strong"
                 >
                   <Save className="mr-2 h-4 w-4" />
-                  Save
+                  {t("common.save")}
                 </Button>
                 <Button 
                   onClick={() => handleSaveToGallery(true)} 
@@ -319,7 +336,7 @@ export default function ImageGenerator() {
                   className="neon-glow-strong"
                 >
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Publish
+                  {t("common.publish")}
                 </Button>
               </div>
             </div>
@@ -327,9 +344,9 @@ export default function ImageGenerator() {
         ) : (
           <div className="text-center space-y-4">
             <div className="w-32 h-32 mx-auto rounded-full bg-gradient-to-r from-primary/20 to-secondary/20 flex items-center justify-center neon-glow animate-neon-pulse">
-              <Sparkles className="h-16 w-16 text-primary" />
+              <Sparkles className="h-16 w-16 text-primary animate-rotate-slow" />
             </div>
-            <p className="text-muted-foreground">Your generated image will appear here</p>
+            <p className="text-muted-foreground">{t("generator.imagePreview")}</p>
           </div>
         )}
       </Card>

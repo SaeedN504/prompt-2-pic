@@ -4,27 +4,29 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, Sparkles, Copy, RefreshCw, Check, Wand2 } from "lucide-react";
+import { Upload, Sparkles, RefreshCw, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useStateWithLocalStorage } from "@/hooks/useStateWithLocalStorage";
 
 export default function ImageToPrompt() {
+  const { t, language } = useLanguage();
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [textInput, setTextInput] = useState("");
-  const [magicPrompt, setMagicPrompt] = useState("");
+  const [textInput, setTextInput] = useStateWithLocalStorage("promptGen.textInput", "");
+  const [magicPrompt, setMagicPrompt] = useStateWithLocalStorage("promptGen.magicPrompt", "");
   const [isEnhancing, setIsEnhancing] = useState(false);
-  const [style, setStyle] = useState("none");
-  const [mood, setMood] = useState("none");
-  const [negativePrompt, setNegativePrompt] = useState("");
+  const [style, setStyle] = useStateWithLocalStorage("promptGen.style", "none");
+  const [mood, setMood] = useStateWithLocalStorage("promptGen.mood", "none");
+  const [negativePrompt, setNegativePrompt] = useStateWithLocalStorage("promptGen.negativePrompt", "");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [prompts, setPrompts] = useState<Record<string, any>>({});
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [prompts, setPrompts] = useStateWithLocalStorage<Record<string, any>>("promptGen.prompts", {});
   const [activeTab, setActiveTab] = useState("general");
 
   const handleMagicPrompt = async () => {
     if (!textInput.trim()) {
-      toast.error("Please enter a simple description first");
+      toast.error(t("toast.enterPrompt"));
       return;
     }
 
@@ -37,7 +39,7 @@ export default function ImageToPrompt() {
       if (error) throw error;
 
       setMagicPrompt(data.enhancedPrompt);
-      toast.success("Description enhanced!");
+      toast.success(t("toast.promptEnhanced"));
     } catch (error: any) {
       console.error("Error enhancing prompt:", error);
       toast.error(error.message || "Failed to enhance description");
@@ -68,7 +70,7 @@ export default function ImageToPrompt() {
   const handleGenerate = async () => {
     const finalTextInput = magicPrompt || textInput;
     if (!finalTextInput && !imageFile) {
-      toast.error("Please provide an image or text description");
+      toast.error(t("toast.provideInput"));
       return;
     }
 
@@ -93,7 +95,7 @@ export default function ImageToPrompt() {
 
       setPrompts(data.prompts);
       setActiveTab("general");
-      toast.success("Prompts generated successfully!");
+      toast.success(t("toast.promptsGenerated"));
     } catch (error: any) {
       console.error("Error generating prompts:", error);
       toast.error(error.message || "Failed to generate prompts");
@@ -102,67 +104,45 @@ export default function ImageToPrompt() {
     }
   };
 
-  const handleCopy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-    toast.success("Copied to clipboard!");
-  };
-
   const renderPromptContent = (modelId: string, promptData: any) => {
     if (typeof promptData === "string") {
       return (
-        <div className="relative">
-          <Textarea
-            value={promptData}
-            readOnly
-            className="min-h-[150px] bg-card/50 border-border/50 text-foreground resize-none neon-glow"
-          />
-          <Button
-            size="sm"
-            variant="ghost"
-            className="absolute top-2 right-2 neon-glow"
-            onClick={() => handleCopy(promptData, modelId)}
-          >
-            {copiedId === modelId ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-          </Button>
+        <div className="running-border">
+          <div className="bg-card p-2 rounded-md">
+            <Textarea
+              value={promptData}
+              readOnly
+              className="min-h-[150px] bg-card/50 border-border/50 text-foreground resize-none transition-all"
+              showCopy={true}
+            />
+          </div>
         </div>
       );
     } else if (promptData?.prompt) {
       return (
         <div className="space-y-4">
-          <div className="relative">
-            <label className="text-sm font-medium text-muted-foreground mb-2 block">Main Prompt</label>
-            <Textarea
-              value={promptData.prompt}
-              readOnly
-              className="min-h-[150px] bg-card/50 border-border/50 text-foreground resize-none neon-glow"
-            />
-            <Button
-              size="sm"
-              variant="ghost"
-              className="absolute top-8 right-2 neon-glow"
-              onClick={() => handleCopy(promptData.prompt, `${modelId}-main`)}
-            >
-              {copiedId === `${modelId}-main` ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            </Button>
+          <div className="running-border">
+            <div className="bg-card p-2 rounded-md">
+              <label className="text-sm font-medium text-muted-foreground mb-2 block">{t("prompt.mainPrompt")}</label>
+              <Textarea
+                value={promptData.prompt}
+                readOnly
+                className="min-h-[150px] bg-card/50 border-border/50 text-foreground resize-none transition-all"
+                showCopy={true}
+              />
+            </div>
           </div>
           {promptData.negative_prompt && (
-            <div className="relative">
-              <label className="text-sm font-medium text-muted-foreground mb-2 block">Negative Prompt</label>
-              <Textarea
-                value={promptData.negative_prompt}
-                readOnly
-                className="min-h-[75px] bg-card/50 border-border/50 text-foreground resize-none neon-glow"
-              />
-              <Button
-                size="sm"
-                variant="ghost"
-                className="absolute top-8 right-2 neon-glow"
-                onClick={() => handleCopy(promptData.negative_prompt, `${modelId}-neg`)}
-              >
-                {copiedId === `${modelId}-neg` ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              </Button>
+            <div className="running-border">
+              <div className="bg-card p-2 rounded-md">
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">{t("generator.negativePrompt")}</label>
+                <Textarea
+                  value={promptData.negative_prompt}
+                  readOnly
+                  className="min-h-[75px] bg-card/50 border-border/50 text-foreground resize-none transition-all"
+                  showCopy={true}
+                />
+              </div>
             </div>
           )}
         </div>
@@ -174,7 +154,7 @@ export default function ImageToPrompt() {
   return (
     <div className="space-y-8">
       {/* Input Section */}
-      <Card className="p-8 bg-card/30 backdrop-blur-xl border-border/50 neon-glow">
+      <Card className="p-8 bg-card/30 backdrop-blur-xl border-border/50 neon-glow animate-slide-in">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Image Upload */}
           <div className="flex flex-col items-center justify-center">
@@ -186,9 +166,9 @@ export default function ImageToPrompt() {
                 <img src={imagePreview} alt="Preview" className="w-full h-full object-contain rounded-xl" />
               ) : (
                 <div className="text-center space-y-4">
-                  <Upload className="mx-auto h-12 w-12 text-primary animate-float" />
-                  <p className="text-sm font-medium gradient-text">Upload an image</p>
-                  <p className="text-xs text-muted-foreground">Or describe your idea below</p>
+                  <Upload className="mx-auto h-12 w-12 text-primary animate-bounce-slow" />
+                  <p className="text-sm font-medium gradient-text">{t("prompt.uploadImage")}</p>
+                  <p className="text-xs text-muted-foreground">{t("prompt.orDescribe")}</p>
                 </div>
               )}
               <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -198,12 +178,17 @@ export default function ImageToPrompt() {
 
           {/* Text Input */}
           <div className="flex flex-col space-y-4">
-            <Textarea
-              placeholder="Simple description... e.g., cyberpunk city at night"
-              value={textInput}
-              onChange={(e) => setTextInput(e.target.value)}
-              className="min-h-[80px] bg-card/50 border-border/50 focus:border-primary neon-glow resize-none"
-            />
+            <div className="running-border">
+              <div className="bg-card p-2 rounded-md">
+                <Textarea
+                  placeholder={t("prompt.description")}
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  className="min-h-[80px] bg-card/50 border-border/50 focus:border-primary resize-none transition-all"
+                  showCopy={true}
+                />
+              </div>
+            </div>
             <Button
               onClick={handleMagicPrompt}
               disabled={isEnhancing || !textInput.trim()}
@@ -213,64 +198,70 @@ export default function ImageToPrompt() {
               {isEnhancing ? (
                 <>
                   <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                  Enhancing...
+                  {t("generator.enhancing")}
                 </>
               ) : (
                 <>
                   <Wand2 className="mr-2 h-4 w-4" />
-                  Magic Enhance Description
+                  {t("prompt.magicEnhance")}
                 </>
               )}
             </Button>
             {magicPrompt && (
-              <Textarea
-                value={magicPrompt}
-                onChange={(e) => setMagicPrompt(e.target.value)}
-                className="min-h-[100px] bg-card/50 border-border/50 focus:border-primary neon-glow resize-none"
-              />
+              <div className="running-border">
+                <div className="bg-card p-2 rounded-md">
+                  <Textarea
+                    value={magicPrompt}
+                    onChange={(e) => setMagicPrompt(e.target.value)}
+                    className="min-h-[100px] bg-card/50 border-border/50 focus:border-primary resize-none transition-all"
+                    showCopy={true}
+                  />
+                </div>
+              </div>
             )}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">Style</label>
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">{t("generator.style")}</label>
                 <Select value={style} onValueChange={setStyle}>
                   <SelectTrigger className="bg-card/50 border-border/50 neon-glow">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="photorealistic">Photorealistic</SelectItem>
-                    <SelectItem value="anime">Anime</SelectItem>
-                    <SelectItem value="cinematic">Cinematic</SelectItem>
-                    <SelectItem value="fantasy">Fantasy Art</SelectItem>
-                    <SelectItem value="vintage">Vintage</SelectItem>
-                    <SelectItem value="abstract">Abstract</SelectItem>
+                    <SelectItem value="none">{t("style.none")}</SelectItem>
+                    <SelectItem value="photorealistic">{t("style.photorealistic")}</SelectItem>
+                    <SelectItem value="anime">{t("style.anime")}</SelectItem>
+                    <SelectItem value="cinematic">{t("style.cinematic")}</SelectItem>
+                    <SelectItem value="fantasy">{t("style.fantasy")}</SelectItem>
+                    <SelectItem value="vintage">{t("style.vintage")}</SelectItem>
+                    <SelectItem value="abstract">{t("style.abstract")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">Mood</label>
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">{t("prompt.mood")}</label>
                 <Select value={mood} onValueChange={setMood}>
                   <SelectTrigger className="bg-card/50 border-border/50 neon-glow">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="serene">Serene</SelectItem>
-                    <SelectItem value="energetic">Energetic</SelectItem>
-                    <SelectItem value="ominous">Ominous</SelectItem>
-                    <SelectItem value="whimsical">Whimsical</SelectItem>
-                    <SelectItem value="melancholic">Melancholic</SelectItem>
+                    <SelectItem value="none">{t("mood.none")}</SelectItem>
+                    <SelectItem value="serene">{t("mood.serene")}</SelectItem>
+                    <SelectItem value="energetic">{t("mood.energetic")}</SelectItem>
+                    <SelectItem value="ominous">{t("mood.ominous")}</SelectItem>
+                    <SelectItem value="whimsical">{t("mood.whimsical")}</SelectItem>
+                    <SelectItem value="melancholic">{t("mood.melancholic")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-2 block">Negative Prompt</label>
+              <label className="text-sm font-medium text-muted-foreground mb-2 block">{t("generator.negativePrompt")}</label>
               <Textarea
-                placeholder="e.g., blurry, text, watermark"
+                placeholder={t("generator.negativePromptPlaceholder")}
                 value={negativePrompt}
                 onChange={(e) => setNegativePrompt(e.target.value)}
-                className="min-h-[60px] bg-card/50 border-border/50 focus:border-primary neon-glow resize-none"
+                className="min-h-[60px] bg-card/50 border-border/50 focus:border-primary resize-none"
+                showCopy={true}
               />
             </div>
           </div>
@@ -279,17 +270,17 @@ export default function ImageToPrompt() {
         <Button
           onClick={handleGenerate}
           disabled={isGenerating || ((!textInput && !magicPrompt) && !imageFile)}
-          className="w-full mt-8 bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-primary-foreground font-semibold py-6 neon-glow-strong"
+          className="w-full mt-8 bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-primary-foreground font-semibold py-6 neon-glow-strong animate-pulse-glow"
         >
           {isGenerating ? (
             <>
               <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
-              Generating Hyper-Detailed Prompts...
+              {t("prompt.generatingPrompts")}
             </>
           ) : (
             <>
               <Sparkles className="mr-2 h-5 w-5" />
-              Generate Prompts
+              {t("prompt.generatePrompts")}
             </>
           )}
         </Button>
@@ -297,12 +288,12 @@ export default function ImageToPrompt() {
 
       {/* Results Section */}
       {Object.keys(prompts).length > 0 && (
-        <Card className="p-8 bg-card/30 backdrop-blur-xl border-border/50 neon-glow">
-          <h2 className="text-2xl font-bold mb-6 gradient-text">Generated Prompts</h2>
+        <Card className="p-8 bg-card/30 backdrop-blur-xl border-border/50 neon-glow animate-fade-in-up">
+          <h2 className="text-2xl font-bold mb-6 gradient-text">{t("prompt.generatedPrompts")}</h2>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 bg-card/50 neon-glow">
               {models.map((model) => (
-                <TabsTrigger key={model.id} value={model.id} className="data-[state=active]:neon-glow-strong">
+                <TabsTrigger key={model.id} value={model.id} className="data-[state=active]:neon-glow-strong transition-all">
                   {model.name}
                 </TabsTrigger>
               ))}
