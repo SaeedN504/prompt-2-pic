@@ -24,6 +24,7 @@ const translations: Record<Language, Record<string, string>> = {
     "tab.imageToPrompt": "Image to Prompt",
     "tab.imageGenerator": "Image Generator",
     "tab.imageEditor": "Image Editor",
+    "tab.adGenerator": "AI Ad Generator",
     
     // Common
     "common.generate": "Generate",
@@ -126,6 +127,21 @@ const translations: Record<Language, Record<string, string>> = {
     "gallery.noImages": "No images yet",
     "gallery.backToStudio": "Back to Studio",
     
+    // Ad Generator
+    "ad.title": "AI Ad Generator",
+    "ad.uploadProduct": "Upload Product Image",
+    "ad.uploadInfo": "PNG, JPG up to 10MB",
+    "ad.productPrompt": "Product/Ad Description",
+    "ad.productPromptPlaceholder": "Describe your product or ad idea: luxury watch, sports car, fashion brand...",
+    "ad.magicEnhanceAd": "Magic Enhance Ad Prompt",
+    "ad.enhancing": "Enhancing ad prompt...",
+    "ad.enhancedPrompt": "Enhanced Ad Prompt",
+    "ad.cinematicMode": "Cinematic Mode",
+    "ad.hyperRealistic": "Hyper-Realistic",
+    "ad.generateAd": "Generate Ad Image",
+    "ad.generatingAd": "Creating Mesmerizing Ad...",
+    "ad.imagePreview": "Your stunning ad will appear here",
+    
     // Toast messages
     "toast.promptEnhanced": "Prompt enhanced!",
     "toast.imageGenerated": "Image generated successfully!",
@@ -138,6 +154,7 @@ const translations: Record<Language, Record<string, string>> = {
     "toast.pleaseSignIn": "Please sign in to save images",
     "toast.enterPrompt": "Please enter a prompt first",
     "toast.provideInput": "Please provide an image or text description",
+    "toast.adGenerated": "Ad image generated successfully!",
   },
   fa: {
     // Header
@@ -151,6 +168,7 @@ const translations: Record<Language, Record<string, string>> = {
     "tab.imageToPrompt": "تصویر به پرامپت",
     "tab.imageGenerator": "تولید تصویر",
     "tab.imageEditor": "ویرایش تصویر",
+    "tab.adGenerator": "تولید تبلیغات هوش مصنوعی",
     
     // Common
     "common.generate": "تولید",
@@ -253,6 +271,21 @@ const translations: Record<Language, Record<string, string>> = {
     "gallery.noImages": "هنوز تصویری وجود ندارد",
     "gallery.backToStudio": "بازگشت به استودیو",
     
+    // Ad Generator
+    "ad.title": "تولید تبلیغات با هوش مصنوعی",
+    "ad.uploadProduct": "آپلود تصویر محصول",
+    "ad.uploadInfo": "PNG، JPG تا ۱۰ مگابایت",
+    "ad.productPrompt": "توضیحات محصول/تبلیغ",
+    "ad.productPromptPlaceholder": "محصول یا ایده تبلیغاتی خود را توضیح دهید: ساعت لوکس، ماشین اسپرت، برند مد...",
+    "ad.magicEnhanceAd": "بهبود جادویی پرامپت تبلیغاتی",
+    "ad.enhancing": "در حال بهبود پرامپت تبلیغاتی...",
+    "ad.enhancedPrompt": "پرامپت تبلیغاتی بهبود یافته",
+    "ad.cinematicMode": "حالت سینمایی",
+    "ad.hyperRealistic": "فوق‌واقع‌گرا",
+    "ad.generateAd": "تولید تصویر تبلیغاتی",
+    "ad.generatingAd": "در حال ساخت تبلیغ خیره‌کننده...",
+    "ad.imagePreview": "تبلیغ خیره‌کننده شما اینجا نمایش داده می‌شود",
+    
     // Toast messages
     "toast.promptEnhanced": "پرامپت بهبود یافت!",
     "toast.imageGenerated": "تصویر با موفقیت تولید شد!",
@@ -265,6 +298,7 @@ const translations: Record<Language, Record<string, string>> = {
     "toast.pleaseSignIn": "لطفاً برای ذخیره تصاویر وارد شوید",
     "toast.enterPrompt": "لطفاً ابتدا یک پرامپت وارد کنید",
     "toast.provideInput": "لطفاً یک تصویر یا توضیحات متنی ارائه دهید",
+    "toast.adGenerated": "تصویر تبلیغاتی با موفقیت تولید شد!",
   },
 };
 
