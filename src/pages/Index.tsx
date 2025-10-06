@@ -92,13 +92,13 @@ const Index = () => {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-4 mb-8 bg-card/30 backdrop-blur-xl border border-border/50 neon-glow">
+          <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-2 md:grid-cols-4 mb-8 bg-card/30 backdrop-blur-xl border border-border/50 neon-glow">
             <TabsTrigger 
-              value="ad"
+              value="prompt" 
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-secondary data-[state=active]:text-primary-foreground data-[state=active]:neon-glow-strong transition-all"
             >
-              <Megaphone className="mr-2 h-4 w-4" />
-              {t("tab.adGenerator")}
+              <Wand2 className="mr-2 h-4 w-4" />
+              {t("tab.imageToPrompt")}
             </TabsTrigger>
             <TabsTrigger 
               value="generate"
@@ -115,16 +115,16 @@ const Index = () => {
               {t("tab.imageEditor")}
             </TabsTrigger>
             <TabsTrigger 
-              value="prompt" 
+              value="ad"
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-secondary data-[state=active]:text-primary-foreground data-[state=active]:neon-glow-strong transition-all"
             >
-              <Wand2 className="mr-2 h-4 w-4" />
-              {t("tab.imageToPrompt")}
+              <Megaphone className="mr-2 h-4 w-4" />
+              {t("tab.adGenerator")}
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="ad" className="mt-0">
-            <AdGenerator />
+          <TabsContent value="prompt" className="mt-0">
+            <ImageToPrompt />
           </TabsContent>
 
           <TabsContent value="generate" className="mt-0">
@@ -135,8 +135,8 @@ const Index = () => {
             <ImageEditor />
           </TabsContent>
 
-          <TabsContent value="prompt" className="mt-0">
-            <ImageToPrompt />
+          <TabsContent value="ad" className="mt-0">
+            <AdGenerator />
           </TabsContent>
         </Tabs>
 
