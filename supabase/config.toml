@@ -54,6 +54,12 @@ enable_confirmations = false
 [functions.image-to-prompt]
 verify_jwt = false
 
+[functions.chat]
+verify_jwt = false
+
+[functions.remix-images]
+verify_jwt = false
+
 [functions.generate-image]
 verify_jwt = false
 

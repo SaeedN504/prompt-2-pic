@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Sparkles, Download, RefreshCw, Wand2, Save } from "lucide-react";
+import { Sparkles, Download, RefreshCw, Wand2, Save, Shuffle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -35,6 +35,7 @@ export default function ImageGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useStateWithLocalStorage<string | null>("generator.generatedImage", null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRemixing, setIsRemixing] = useState(false);
 
   const translateToEnglish = async (text: string): Promise<string> => {
     if (language === "en") return text;
@@ -117,6 +118,30 @@ export default function ImageGenerator() {
 
   const randomizeSeed = () => {
     setSeed(Math.floor(Math.random() * 1000000));
+  };
+
+  const handleRemix = async () => {
+    if (!generatedImage) return;
+
+    setIsRemixing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("remix-images", {
+        body: {
+          images: [generatedImage],
+          prompt: "Enhance and transform this image into an even more stunning, artistic masterpiece with improved details and composition"
+        },
+      });
+
+      if (error) throw error;
+
+      setGeneratedImage(data.imageUrl);
+      toast.success("Image remixed successfully!");
+    } catch (error: any) {
+      console.error("Error remixing image:", error);
+      toast.error(error.message || "Failed to remix image");
+    } finally {
+      setIsRemixing(false);
+    }
   };
 
   const handleSaveToGallery = async (isPublic: boolean) => {
@@ -320,6 +345,19 @@ export default function ImageGenerator() {
                 <Button onClick={handleDownload} className="neon-glow-strong">
                   <Download className="mr-2 h-4 w-4" />
                   {t("common.download")}
+                </Button>
+                <Button 
+                  onClick={handleRemix} 
+                  disabled={isRemixing}
+                  variant="outline"
+                  className="neon-glow-strong bg-gradient-to-r from-primary/20 to-secondary/20"
+                >
+                  {isRemixing ? (
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Shuffle className="mr-2 h-4 w-4" />
+                  )}
+                  Remix
                 </Button>
                 <Button 
                   onClick={() => handleSaveToGallery(false)} 

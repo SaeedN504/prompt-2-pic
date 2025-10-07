@@ -113,18 +113,22 @@ Create a detailed prompt that emphasizes ${cinematicMode ? 'cinematic, film-like
     try {
       const englishPrompt = await translateToEnglish(finalPrompt);
       
-      // Add advertising-specific enhancements to the prompt
+      // Enhanced advertising-specific prompt engineering for maximum quality
       let enhancedAdPrompt = englishPrompt;
       
+      // Add premium quality baseline
+      enhancedAdPrompt += ", ultra high resolution, 8k quality, professional commercial photography";
+      
       if (cinematicMode) {
-        enhancedAdPrompt += ", cinematic lighting, dramatic shadows, film grain, shallow depth of field, bokeh background, professional color grading, anamorphic lens flare";
+        enhancedAdPrompt += ", cinematic masterpiece, dramatic volumetric lighting, god rays, golden hour illumination, perfect shadows and highlights, film grain texture, ultra shallow depth of field with creamy bokeh, anamorphic lens characteristics, professional color grading with teal and orange tones, atmospheric haze";
       }
       
       if (hyperRealistic) {
-        enhancedAdPrompt += ", hyper-realistic, photo-realistic, 8k uhd, high detail, sharp focus, studio lighting, physically-based rendering, extreme detail description, professional photography";
+        enhancedAdPrompt += ", hyper-photorealistic, physically accurate materials and textures, perfect ray-traced reflections, subsurface scattering on organic materials, micro-detail visible, studio-quality lighting setup, professional DSLR camera with prime lens, perfect focus and clarity, museum-quality print standards";
       }
       
-      enhancedAdPrompt += ", award-winning advertising photography, commercial product shot, magazine quality, luxury aesthetic, premium branding";
+      // Premium advertising enhancements
+      enhancedAdPrompt += ", award-winning advertising campaign photography, Vogue magazine editorial quality, luxury brand aesthetic, aspirational lifestyle imagery, perfect composition following rule of thirds, premium branding, high-end commercial appeal, captivating visual storytelling";
 
       const { data, error } = await supabase.functions.invoke("generate-image", {
         body: {
@@ -132,7 +136,7 @@ Create a detailed prompt that emphasizes ${cinematicMode ? 'cinematic, film-like
           style: "photorealistic",
           aspectRatio: "16:9",
           quality: "ultra",
-          negativePrompt: "cartoon, illustration, painting, drawing, art, sketch, low quality, blurry, distorted, ugly, bad composition, amateur, unprofessional",
+          negativePrompt: "cartoon, anime, illustration, painting, drawing, digital art, sketch, low quality, blurry, out of focus, distorted, ugly, bad composition, amateur photo, unprofessional, watermark, text overlay, poor lighting, overexposed, underexposed, grainy noise, compression artifacts",
         },
       });
 

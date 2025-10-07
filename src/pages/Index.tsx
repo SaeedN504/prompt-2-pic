@@ -5,8 +5,9 @@ import ImageToPrompt from "@/components/ImageToPrompt";
 import ImageGenerator from "@/components/ImageGenerator";
 import ImageEditor from "@/components/ImageEditor";
 import AdGenerator from "@/components/AdGenerator";
+import AIChatbot from "@/components/AIChatbot";
 import { Auth } from "@/components/Auth";
-import { Sparkles, Wand2, Pencil, Images, LogOut, Languages, Megaphone } from "lucide-react";
+import { Sparkles, Wand2, Pencil, Images, LogOut, Languages, Megaphone, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -92,7 +93,7 @@ const Index = () => {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-2 md:grid-cols-4 mb-8 bg-card/30 backdrop-blur-xl border border-border/50 neon-glow">
+          <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-2 md:grid-cols-5 mb-8 bg-card/30 backdrop-blur-xl border border-border/50 neon-glow">
             <TabsTrigger 
               value="prompt" 
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-secondary data-[state=active]:text-primary-foreground data-[state=active]:neon-glow-strong transition-all"
@@ -121,6 +122,13 @@ const Index = () => {
               <Megaphone className="mr-2 h-4 w-4" />
               {t("tab.adGenerator")}
             </TabsTrigger>
+            <TabsTrigger 
+              value="chat"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-secondary data-[state=active]:text-primary-foreground data-[state=active]:neon-glow-strong transition-all"
+            >
+              <MessageSquare className="mr-2 h-4 w-4" />
+              AI Chat
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="prompt" className="mt-0">
@@ -137,6 +145,10 @@ const Index = () => {
 
           <TabsContent value="ad" className="mt-0">
             <AdGenerator />
+          </TabsContent>
+
+          <TabsContent value="chat" className="mt-0">
+            <AIChatbot />
           </TabsContent>
         </Tabs>
 
